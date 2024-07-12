@@ -1,0 +1,76 @@
+import json
+import psycopg2
+
+# Database connection parameters
+db_params = {
+    'dbname': 'neighbrhood',
+    'user': 'postgres',
+    'password': '123',
+    'host': 'localhost',
+    'port': '5432'
+}
+
+# Connect to the PostgreSQL database
+conn = psycopg2.connect(**db_params)
+cur = conn.cursor()
+
+# Create the table with PostGIS extension if it doesn't exist
+cur.execute('''
+CREATE EXTENSION IF NOT EXISTS postgis;
+
+CREATE TABLE IF NOT EXISTS businesses (
+    business_id VARCHAR(512) PRIMARY KEY,
+    name VARCHAR(512),
+    address VARCHAR(512),
+    city VARCHAR(512),
+    state VARCHAR(512),
+    postal_code VARCHAR(20),
+    latitude FLOAT,
+    longitude FLOAT,
+    geom GEOGRAPHY(Point, 4326),  -- Example column for storing point data
+    stars FLOAT,
+    review_count INT,
+    is_open INT,
+    attributes JSONB,
+    categories VARCHAR(512),
+    hours JSONB
+);
+''')
+conn.commit()
+
+# Load and insert data from JSON file
+with open('businesses.json', 'r', encoding='utf-8') as file:
+    try:
+        for line in file:
+            data = json.loads(line.strip())
+            # Convert attributes and hours to JSON-formatted strings
+            data['attributes'] = json.dumps(data['attributes'])
+            data['hours'] = json.dumps(data['hours']) if data['hours'] else None
+            
+            # Example: Inserting spatial data into 'geom' column
+            if 'latitude' in data and 'longitude' in data:
+                point = f"POINT({data['longitude']} {data['latitude']})"
+                cur.execute('''
+                INSERT INTO businesses (
+                    business_id, name, address, city, state, postal_code,
+                    latitude, longitude, geom, stars, review_count, is_open,
+                    attributes, categories, hours
+                ) VALUES (
+                    %(business_id)s, %(name)s, %(address)s, %(city)s, %(state)s, %(postal_code)s,
+                    %(latitude)s, %(longitude)s, ST_SetSRID(ST_GeomFromText(%(point)s), 4326),
+                    %(stars)s, %(review_count)s, %(is_open)s,
+                    %(attributes)s::jsonb, %(categories)s, %(hours)s::jsonb
+                )
+                ON CONFLICT (business_id) DO NOTHING;
+                ''', {'point': point, **data})
+
+    except json.JSONDecodeError as e:
+        print(f"Error parsing JSON line: {e}")
+    except psycopg2.Error as e:
+        print(f"Database error: {e}")
+
+conn.commit()
+
+# Close the connection
+cur.close()
+conn.close()
