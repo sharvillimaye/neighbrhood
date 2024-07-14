@@ -3,10 +3,10 @@ import psycopg2
 
 # Database connection parameters
 db_params = {
-    'dbname': 'neighbrhood',
+    'dbname': 'nbhd',
     'user': 'postgres',
     'password': '123',
-    'host': 'localhost',
+    'host': 'nbhd-instance-1.ctyfuwuw51m1.us-east-1.rds.amazonaws.com',
     'port': '5432'
 }
 
@@ -27,10 +27,8 @@ CREATE TABLE IF NOT EXISTS businesses (
     postal_code VARCHAR(20),
     latitude FLOAT,
     longitude FLOAT,
-    geom GEOGRAPHY(Point, 4326),  -- Example column for storing point data
+    geom GEOMETRY(Point, 4326),  -- Example column for storing point data with PostGIS
     stars FLOAT,
-    review_count INT,
-    is_open INT,
     attributes JSONB,
     categories VARCHAR(512),
     hours JSONB
@@ -43,23 +41,26 @@ with open('businesses.json', 'r', encoding='utf-8') as file:
     try:
         for line in file:
             data = json.loads(line.strip())
+            
+            # Skip entry if is_open is 0
+            if data.get('is_open') == 0:
+                continue
+
             # Convert attributes and hours to JSON-formatted strings
             data['attributes'] = json.dumps(data['attributes'])
             data['hours'] = json.dumps(data['hours']) if data['hours'] else None
-            
+
             # Example: Inserting spatial data into 'geom' column
             if 'latitude' in data and 'longitude' in data:
                 point = f"POINT({data['longitude']} {data['latitude']})"
                 cur.execute('''
                 INSERT INTO businesses (
                     business_id, name, address, city, state, postal_code,
-                    latitude, longitude, geom, stars, review_count, is_open,
-                    attributes, categories, hours
+                    latitude, longitude, geom, stars, attributes, categories, hours
                 ) VALUES (
                     %(business_id)s, %(name)s, %(address)s, %(city)s, %(state)s, %(postal_code)s,
                     %(latitude)s, %(longitude)s, ST_SetSRID(ST_GeomFromText(%(point)s), 4326),
-                    %(stars)s, %(review_count)s, %(is_open)s,
-                    %(attributes)s::jsonb, %(categories)s, %(hours)s::jsonb
+                    %(stars)s, %(attributes)s::jsonb, %(categories)s, %(hours)s::jsonb
                 )
                 ON CONFLICT (business_id) DO NOTHING;
                 ''', {'point': point, **data})
