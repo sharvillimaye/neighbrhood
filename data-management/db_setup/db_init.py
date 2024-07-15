@@ -6,7 +6,7 @@ db_params = {
     'dbname': 'nbhd',
     'user': 'postgres',
     'password': '123',
-    'host': 'nbhd-instance-1.ctyfuwuw51m1.us-east-1.rds.amazonaws.com',
+    'host': 'localhost',
     'port': '5432'
 }
 
@@ -22,7 +22,6 @@ CREATE TABLE IF NOT EXISTS businesses (
     business_id VARCHAR(512) PRIMARY KEY,
     name VARCHAR(512),
     address VARCHAR(512),
-    city VARCHAR(512),
     state VARCHAR(512),
     postal_code VARCHAR(20),
     latitude FLOAT,
@@ -42,8 +41,8 @@ with open('businesses.json', 'r', encoding='utf-8') as file:
         for line in file:
             data = json.loads(line.strip())
             
-            # Skip entry if is_open is 0
-            if data.get('is_open') == 0:
+            # Skip entry if is_open is 0 or city is not Philadelphia
+            if data.get('is_open') == 0 or data.get('city') != 'Philadelphia':
                 continue
 
             # Convert attributes and hours to JSON-formatted strings
@@ -55,10 +54,10 @@ with open('businesses.json', 'r', encoding='utf-8') as file:
                 point = f"POINT({data['longitude']} {data['latitude']})"
                 cur.execute('''
                 INSERT INTO businesses (
-                    business_id, name, address, city, state, postal_code,
+                    business_id, name, address, state, postal_code,
                     latitude, longitude, geom, stars, attributes, categories, hours
                 ) VALUES (
-                    %(business_id)s, %(name)s, %(address)s, %(city)s, %(state)s, %(postal_code)s,
+                    %(business_id)s, %(name)s, %(address)s, %(state)s, %(postal_code)s,
                     %(latitude)s, %(longitude)s, ST_SetSRID(ST_GeomFromText(%(point)s), 4326),
                     %(stars)s, %(attributes)s::jsonb, %(categories)s, %(hours)s::jsonb
                 )
