@@ -41,11 +41,15 @@ def find_businesses_within_distance(latitude, longitude, distance):
         print(f"Error: {e}")
         return []
 
-# Example usage
-latitude = 39.9526   # Replace with your actual latitude
-longitude = -75.1652 # Replace with your actual longitude
-distance = 10   # Replace with the desired distance in meters
+def main():
+    # Example usage
+    latitude = 39.9526   # Replace with your actual latitude
+    longitude = -75.1652 # Replace with your actual longitude
+    distance = 10   # Replace with the desired distance in meters
 
-businesses = find_businesses_within_distance(latitude, longitude, distance)
-for business in businesses:
-    print(business)
+    businesses = find_businesses_within_distance(latitude, longitude, distance)
+    for business in businesses:
+        print(business)
+
+if __name__ == "__main__":
+    main()
